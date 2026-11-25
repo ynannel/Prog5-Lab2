@@ -9,6 +9,7 @@ from matplotlib.figure import Figure
 
 from studio.plots import build_figure, categorical_columns, numeric_columns, save_figure
 from studio.session import DataSession
+from studio.theme import apply_theme, style_tree, style_log
 
 APP_TITLE = "Studio jakości i wizualizacji danych"
 PREVIEW_ROWS = 80
@@ -16,25 +17,20 @@ PREVIEW_ROWS = 80
 
 class StudioApp(ttk.Frame):
     def __init__(self, master: tk.Tk) -> None:
-        super().__init__(master, padding=8)
+        self.font_family = apply_theme(master)
+        super().__init__(master, padding=0)
         self.master = master
         self.session: DataSession | None = None
         self._canvas: FigureCanvasTkAgg | None = None
         self._toolbar: NavigationToolbar2Tk | None = None
         self._figure: Figure | None = None
+        self.stat_rows = tk.StringVar(value="—")
+        self.stat_columns = tk.StringVar(value="—")
+        self.stat_source_rows = tk.StringVar(value="—")
         self.pack(fill=tk.BOTH, expand=True)
-        self._build_style()
         self._build_menu()
         self._build_layout()
         self._set_status("Wczytaj plik CSV, aby rozpocząć analizę.")
-
-    def _build_style(self) -> None:
-        style = ttk.Style()
-        if "clam" in style.theme_names():
-            style.theme_use("clam")
-        style.configure("TNotebook.Tab", padding=(12, 6))
-        style.configure("Header.TLabel", font=("TkDefaultFont", 14, "bold"))
-        style.configure("Muted.TLabel", foreground="#555555")
 
     def _build_menu(self) -> None:
         menubar = tk.Menu(self.master)
@@ -56,20 +52,116 @@ class StudioApp(ttk.Frame):
         self.master.config(menu=menubar)
 
     def _build_layout(self) -> None:
-        header = ttk.Frame(self)
-        header.pack(fill=tk.X, pady=(0, 8))
-        ttk.Label(header, text=APP_TITLE, style="Header.TLabel").pack(side=tk.LEFT)
-        ttk.Button(header, text="Wczytaj CSV", command=self.open_csv).pack(side=tk.RIGHT, padx=4)
-        ttk.Button(header, text="Reset do surowych", command=self.reset_session).pack(side=tk.RIGHT)
+        # Main shell: dark navigation sidebar + light workspace.
+        sidebar = tk.Frame(self, bg="#20293A", width=224)
+        sidebar.pack(side=tk.LEFT, fill=tk.Y)
+        sidebar.pack_propagate(False)
 
-        self.notebook = ttk.Notebook(self)
+        brand = tk.Frame(sidebar, bg="#20293A")
+        brand.pack(fill=tk.X, padx=20, pady=(25, 28))
+        tk.Label(
+            brand, text="ATELIER", bg="#20293A", fg="#FFF9F0",
+            font=(self.font_family, 19, "bold")
+        ).pack(anchor=tk.W)
+        tk.Label(
+            brand, text="DATA STUDIO  /  01", bg="#20293A", fg="#B8C1CF",
+            font=(self.font_family, 8, "bold")
+        ).pack(anchor=tk.W, pady=(4, 0))
+
+        tk.Frame(sidebar, bg="#46536A", height=1).pack(fill=tk.X, padx=18, pady=(0, 18))
+        tk.Label(
+            sidebar, text="OBSZARY ROBOCZE", bg="#20293A", fg="#E39A70",
+            font=(self.font_family, 8, "bold")
+        ).pack(anchor=tk.W, padx=20, pady=(0, 9))
+
+        workspace = ttk.Frame(self, padding=(24, 18, 24, 12))
+        workspace.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        header = ttk.Frame(workspace)
+        header.pack(fill=tk.X, pady=(0, 16))
+        heading_box = ttk.Frame(header)
+        heading_box.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(
+            heading_box, text="Studio jakości i wizualizacji danych",
+            style="Title.TLabel"
+        ).pack(anchor=tk.W)
+        ttk.Label(
+            heading_box, text="Analizuj, porządkuj i odkrywaj zależności w swoich danych.",
+            style="Subtitle.TLabel"
+        ).pack(anchor=tk.W, pady=(4, 0))
+
+        actions = ttk.Frame(header)
+        actions.pack(side=tk.RIGHT, anchor=tk.CENTER)
+        ttk.Button(
+            actions, text="Reset do surowych", style="Ghost.TButton",
+            command=self.reset_session
+        ).pack(side=tk.LEFT, padx=(0, 7))
+        ttk.Button(
+            actions, text="+ Wczytaj CSV", style="Primary.TButton",
+            command=self.open_csv
+        ).pack(side=tk.LEFT)
+
+        # Hide standard notebook tabs; the sidebar provides navigation.
+        style = ttk.Style(self.master)
+        try:
+            style.layout("Hidden.TNotebook.Tab", [])
+        except tk.TclError:
+            pass
+
+        self.notebook = ttk.Notebook(workspace, style="Hidden.TNotebook")
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        self.tab_data = ttk.Frame(self.notebook, padding=8)
-        self.tab_profile = ttk.Frame(self.notebook, padding=8)
-        self.tab_clean = ttk.Frame(self.notebook, padding=8)
-        self.tab_plot = ttk.Frame(self.notebook, padding=8)
-        self.tab_audit = ttk.Frame(self.notebook, padding=8)
+        self.tab_data = ttk.Frame(self.notebook, padding=14)
+        self.tab_profile = ttk.Frame(self.notebook, padding=14)
+        self.tab_clean = ttk.Frame(self.notebook, padding=14)
+        self.tab_plot = ttk.Frame(self.notebook, padding=14)
+        self.tab_audit = ttk.Frame(self.notebook, padding=14)
+
+        tabs = [
+            ("01", "Dane", self.tab_data),
+            ("02", "Profil", self.tab_profile),
+            ("03", "Czyszczenie", self.tab_clean),
+            ("04", "Wizualizacja", self.tab_plot),
+            ("05", "Ślad zmian", self.tab_audit),
+        ]
+        self._nav_buttons = []
+        for number, label, tab in tabs:
+            button = tk.Button(
+                sidebar,
+                text=f"{number}   {label}",
+                anchor="w",
+                command=lambda target=tab: self._select_tab(target),
+                bg="#20293A",
+                fg="#B8C1CF",
+                activebackground="#303B50",
+                activeforeground="#FFF9F0",
+                relief="flat",
+                bd=0,
+                padx=20,
+                pady=12,
+                font=(self.font_family, 10, "bold"),
+                cursor="hand2",
+            )
+            button.pack(fill=tk.X, padx=8, pady=2)
+            button.bind(
+                "<Enter>",
+                lambda event, b=button: b.configure(bg="#303B50")
+                if b.cget("bg") != "#C45C32" else None
+            )
+            button.bind(
+                "<Leave>",
+                lambda event, b=button: b.configure(bg="#20293A")
+                if b.cget("bg") != "#C45C32" else None
+            )
+            self._nav_buttons.append((button, tab))
+
+        tk.Frame(sidebar, bg="#46536A", height=1).pack(fill=tk.X, padx=18, pady=(20, 12))
+        tk.Label(
+            sidebar, text="ATELIER  •  CSV WORKSPACE",
+            bg="#20293A", fg="#8793A5",
+            font=(self.font_family, 8)
+        ).pack(side=tk.BOTTOM, anchor=tk.W, padx=20, pady=18)
+
         self.notebook.add(self.tab_data, text="Dane")
         self.notebook.add(self.tab_profile, text="Profil")
         self.notebook.add(self.tab_clean, text="Czyszczenie")
@@ -82,23 +174,55 @@ class StudioApp(ttk.Frame):
         self._build_plot_tab()
         self._build_audit_tab()
 
+        status_bar = ttk.Frame(workspace, style="Card.TFrame", padding=(12, 8))
+        status_bar.pack(fill=tk.X, pady=(12, 0))
         self.status = tk.StringVar()
-        ttk.Label(self, textvariable=self.status, style="Muted.TLabel").pack(fill=tk.X, pady=(6, 0))
+        ttk.Label(status_bar, text="●", foreground="#397A72", background="#FFFCF6").pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Label(status_bar, textvariable=self.status, style="CardMuted.TLabel").pack(side=tk.LEFT, fill=tk.X)
+
+        self._select_tab(self.tab_data)
+
+    def _select_tab(self, tab: ttk.Frame) -> None:
+        self.notebook.select(tab)
+        for button, target in self._nav_buttons:
+            selected = target is tab
+            button.configure(
+                bg="#C45C32" if selected else "#20293A",
+                fg="#FFFFFF" if selected else "#B8C1CF",
+            )
 
     def _build_data_tab(self) -> None:
-        info = ttk.Frame(self.tab_data)
-        info.pack(fill=tk.X)
+        intro = ttk.Frame(self.tab_data)
+        intro.pack(fill=tk.X, pady=(0, 12))
+        ttk.Label(intro, text="Przegląd danych", style="Header.TLabel").pack(anchor=tk.W)
         self.data_info = tk.StringVar(value="Brak wczytanych danych.")
-        ttk.Label(info, textvariable=self.data_info, wraplength=900).pack(anchor=tk.W)
         ttk.Label(
-            self.tab_data,
-            text=f"Podgląd pierwszych {PREVIEW_ROWS} wierszy (pełny zbiór pozostaje w sesji).",
-            style="Muted.TLabel",
-        ).pack(anchor=tk.W, pady=(6, 4))
+            intro, textvariable=self.data_info, style="Muted.TLabel",
+            wraplength=1000
+        ).pack(anchor=tk.W, pady=(4, 0))
 
-        container = ttk.Frame(self.tab_data)
+        cards = ttk.Frame(self.tab_data)
+        cards.pack(fill=tk.X, pady=(0, 14))
+        for column in range(3):
+            cards.columnconfigure(column, weight=1)
+
+        self._stat_card(cards, 0, "WIERSZE", self.stat_rows, "Liczba rekordów w bieżącym zbiorze")
+        self._stat_card(cards, 1, "KOLUMNY", self.stat_columns, "Liczba dostępnych zmiennych")
+        self._stat_card(cards, 2, "DANE ŹRÓDŁOWE", self.stat_source_rows, "Rekordy w oryginalnym pliku")
+
+        table_header = ttk.Frame(self.tab_data)
+        table_header.pack(fill=tk.X, pady=(2, 7))
+        ttk.Label(table_header, text="Podgląd tabeli", style="Header.TLabel").pack(side=tk.LEFT)
+        ttk.Label(
+            table_header,
+            text=f"Pierwsze {PREVIEW_ROWS} wierszy • pełny zbiór pozostaje w sesji",
+            style="Muted.TLabel"
+        ).pack(side=tk.RIGHT)
+
+        container = ttk.Frame(self.tab_data, style="Card.TFrame", padding=8)
         container.pack(fill=tk.BOTH, expand=True)
         self.preview = ttk.Treeview(container, show="headings")
+        style_tree(self.preview)
         yscroll = ttk.Scrollbar(container, orient=tk.VERTICAL, command=self.preview.yview)
         xscroll = ttk.Scrollbar(container, orient=tk.HORIZONTAL, command=self.preview.xview)
         self.preview.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
@@ -107,6 +231,16 @@ class StudioApp(ttk.Frame):
         xscroll.grid(row=1, column=0, sticky="ew")
         container.rowconfigure(0, weight=1)
         container.columnconfigure(0, weight=1)
+
+    def _stat_card(
+        self, parent: ttk.Frame, column: int, title: str,
+        variable: tk.StringVar, description: str
+    ) -> None:
+        card = ttk.Frame(parent, style="Stat.TFrame", padding=(16, 13))
+        card.grid(row=0, column=column, sticky="ew", padx=(0 if column == 0 else 7, 7))
+        ttk.Label(card, text=title, style="StatCaption.TLabel").pack(anchor=tk.W)
+        ttk.Label(card, textvariable=variable, style="StatValue.TLabel").pack(anchor=tk.W, pady=(5, 1))
+        ttk.Label(card, text=description, style="StatCaption.TLabel").pack(anchor=tk.W)
 
     def _build_profile_tab(self) -> None:
         self.profile_summary = tk.StringVar(value="Profil pojawi się po wczytaniu pliku.")
@@ -126,7 +260,7 @@ class StudioApp(ttk.Frame):
         right = ttk.Frame(self.tab_clean)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        ttk.Label(left, text="Operacje", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 8))
+        ttk.Label(left, text="Narzędzia czyszczenia", style="Header.TLabel").pack(anchor=tk.W, pady=(0, 8))
 
         dup = ttk.LabelFrame(left, text="Duplikaty", padding=8)
         dup.pack(fill=tk.X, pady=4)
@@ -215,6 +349,7 @@ class StudioApp(ttk.Frame):
 
         ttk.Label(right, text="Ostatnie operacje", style="Muted.TLabel").pack(anchor=tk.W)
         self.clean_log = tk.Text(right, height=20, wrap=tk.WORD)
+        style_log(self.clean_log, self.font_family)
         self.clean_log.pack(fill=tk.BOTH, expand=True, pady=4)
 
     def _build_plot_tab(self) -> None:
@@ -259,12 +394,14 @@ class StudioApp(ttk.Frame):
     def _build_audit_tab(self) -> None:
         ttk.Button(self.tab_audit, text="Zapisz raport zmian…", command=self.export_audit).pack(anchor=tk.W)
         self.audit_text = tk.Text(self.tab_audit, wrap=tk.WORD)
+        style_log(self.audit_text, self.font_family)
         self.audit_text.pack(fill=tk.BOTH, expand=True, pady=6)
 
     def _make_tree(self, parent: ttk.Frame, height: int = 12) -> ttk.Treeview:
         box = ttk.Frame(parent)
         box.pack(fill=tk.BOTH, expand=True)
         tree = ttk.Treeview(box, show="headings", height=height)
+        style_tree(tree)
         scroll = ttk.Scrollbar(box, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=scroll.set)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -411,6 +548,9 @@ class StudioApp(ttk.Frame):
             f"Wiersze: {len(frame)} | Kolumny: {frame.shape[1]} | "
             f"surowe wiersze: {len(self.session.raw)}{extra}"
         )
+        self.stat_rows.set(f"{len(frame):,}".replace(",", " "))
+        self.stat_columns.set(str(frame.shape[1]))
+        self.stat_source_rows.set(f"{len(self.session.raw):,}".replace(",", " "))
         self._fill_preview(frame)
         self._fill_profile()
         self._refresh_column_lists()
@@ -423,9 +563,10 @@ class StudioApp(ttk.Frame):
         for col in columns:
             self.preview.heading(col, text=col)
             self.preview.column(col, width=110, stretch=True)
-        for _, row in frame.head(PREVIEW_ROWS).iterrows():
+        for index, (_, row) in enumerate(frame.head(PREVIEW_ROWS).iterrows()):
             values = ["" if value != value else value for value in row.tolist()]
-            self.preview.insert("", tk.END, values=values)
+            tag = "odd" if index % 2 == 0 else "even"
+            self.preview.insert("", tk.END, values=values, tags=(tag,))
 
     def _fill_profile(self) -> None:
         profile = self.session.profile()  # type: ignore[union-attr]
@@ -445,8 +586,9 @@ class StudioApp(ttk.Frame):
         for col in columns:
             tree.heading(col, text=str(col))
             tree.column(col, width=110, stretch=True)
-        for _, row in frame.iterrows():
-            tree.insert("", tk.END, values=[row[col] for col in columns])
+        for index, (_, row) in enumerate(frame.iterrows()):
+            tag = "odd" if index % 2 == 0 else "even"
+            tree.insert("", tk.END, values=[row[col] for col in columns], tags=(tag,))
 
     def _refresh_column_lists(self) -> None:
         if self.session is None:
@@ -574,7 +716,8 @@ class StudioApp(ttk.Frame):
 def run_app() -> None:
     root = tk.Tk()
     root.title(APP_TITLE)
-    root.geometry("1280x780")
-    root.minsize(960, 600)
+    root.geometry("1440x880")
+    root.minsize(1100, 700)
+    root.configure(bg="#F1ECE3")
     StudioApp(root)
     root.mainloop()

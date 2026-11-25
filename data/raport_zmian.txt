@@ -1,0 +1,9 @@
+Raport śladu zmian — Studio jakości danych
+
+[2026-11-25T16:06:49] Wczytano CSV: dotknięto 423 rekordów (wiersze 0 → 423) | ścieżka=/Users/yana/Desktop/Prog5/data/california_housing_dirty.csv | kodowanie=utf-8, separator=','
+[2026-11-25T16:07:16] Usunięto pełne duplikaty: dotknięto 3 rekordów (wiersze 423 → 420)
+[2026-11-25T16:07:21] Obsłużono braki: dotknięto 0 rekordów (wiersze 420 → 420) | kolumny=['longitude'], strategia=drop_rows
+[2026-11-25T16:07:25] Obsłużono wartości nienumeryczne: dotknięto 0 rekordów (wiersze 420 → 420) | kolumna=longitude, akcja=zamieniono na NaN / liczbę
+[2026-11-25T16:07:30] Obsłużono wartości nienumeryczne: dotknięto 0 rekordów (wiersze 420 → 420) | kolumna=housing_median_age, akcja=zamieniono na NaN / liczbę
+[2026-11-25T16:07:32] Obsłużono wartości nienumeryczne: dotknięto 0 rekordów (wiersze 420 → 420) | kolumna=longitude, akcja=usunięto wiersze
+[2026-11-25T16:08:04] Przywrócono dane surowe: dotknięto 423 rekordów (wiersze 420 → 423)
