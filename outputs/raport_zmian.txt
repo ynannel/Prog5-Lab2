@@ -1,0 +1,13 @@
+Raport śladu zmian — Studio jakości danych
+
+[2026-11-25T15:50:44] Wczytano CSV: dotknięto 423 rekordów (wiersze 0 → 423) | ścieżka=/Users/yana/Desktop/Prog5/data/california_housing_dirty.csv | kodowanie=utf-8, separator=','
+[2026-11-25T15:50:44] Usunięto pełne duplikaty: dotknięto 3 rekordów (wiersze 423 → 420)
+[2026-11-25T15:50:44] Obsłużono wartości nienumeryczne: dotknięto 1 rekordów (wiersze 420 → 420) | kolumna=population, akcja=zamieniono na NaN / liczbę
+[2026-11-25T15:50:44] Obsłużono wartości nienumeryczne: dotknięto 1 rekordów (wiersze 420 → 420) | kolumna=households, akcja=zamieniono na NaN / liczbę
+[2026-11-25T15:50:44] Obsłużono braki: dotknięto 28 rekordów (wiersze 420 → 420) | kolumny=['total_bedrooms'], strategia=median
+[2026-11-25T15:50:44] Obsłużono braki: dotknięto 12 rekordów (wiersze 420 → 420) | kolumny=['median_income'], strategia=median
+[2026-11-25T15:50:44] Obsłużono braki: dotknięto 8 rekordów (wiersze 420 → 420) | kolumny=['ocean_proximity'], strategia=mode
+[2026-11-25T15:50:44] Obsłużono braki: dotknięto 2 rekordów (wiersze 420 → 420) | kolumny=['population', 'households'], strategia=median
+[2026-11-25T15:50:44] Reguła zakresu: dotknięto 2 rekordów (wiersze 420 → 420) | kolumna=median_income, min=0.0, max=15.0, akcja=flag | Wartość poza zakresem nie jest usuwana, dopóki użytkownik nie wybierze akcji.
+[2026-11-25T15:50:44] Reguła zakresu: dotknięto 2 rekordów (wiersze 420 → 420) | kolumna=longitude, min=-125.0, max=-114.0, akcja=flag | Wartość poza zakresem nie jest usuwana, dopóki użytkownik nie wybierze akcji.
+[2026-11-25T15:50:44] Outliery IQR: dotknięto 2 rekordów (wiersze 420 → 420) | kolumna=median_house_value, współczynnik=1.5, akcja=flag | Obserwacja odstająca nie zawsze jest błędem (np. drogie nieruchomości albo rzadkie lokalizacje).
