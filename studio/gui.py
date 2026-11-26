@@ -19,6 +19,7 @@ class StudioApp(ttk.Frame):
     def __init__(self, master: tk.Tk) -> None:
         self.font_family = apply_theme(master)
         super().__init__(master, padding=0)
+        
         self.master = master
         self.session: DataSession | None = None
         self._canvas: FigureCanvasTkAgg | None = None
